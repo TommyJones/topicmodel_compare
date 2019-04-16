@@ -1,0 +1,101 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(keras)
+```
+
+
+
+```{python}
+# libraries
+from keras import backend as K
+from keras.layers import Input, Dense, Lambda, Activation, Dropout, BatchNormalization, Layer
+from keras.models import Model
+from keras.optimizers import Adam
+from keras.datasets import reuters
+from keras.callbacks import EarlyStopping
+import numpy as np
+
+# declare things
+V = 10922
+(x_train, _), (_, _) = reuters.load_data(start_char=None, oov_char=None, index_from=-1, num_words=V) # remove words having freq(q) <= 5
+word_index = reuters.get_word_index()
+index2word = {v-1: k for k, v in word_index.items()} # zero-origin word index
+x_train = np.array([np.bincount(doc, minlength=V) for doc in x_train])
+x_train = x_train[:8000, :]
+
+num_hidden = 100
+num_topic = 20
+batch_size = 100
+alpha = 1./20
+
+
+mu1 = np.log(alpha) - 1/num_topic*num_topic*np.log(alpha)
+sigma1 = 1./alpha*(1-2./num_topic) + 1/(num_topic**2)*num_topic/alpha
+inv_sigma1 = 1./sigma1
+log_det_sigma = num_topic*np.log(sigma1)
+
+# encoder network
+x = Input(batch_shape=(batch_size, V))
+h = Dense(num_hidden, activation='softplus')(x)
+h = Dense(num_hidden, activation='softplus')(h)
+z_mean = BatchNormalization()(Dense(num_topic)(h))
+z_log_var = BatchNormalization()(Dense(num_topic)(h))
+
+# sampling function
+def sampling(args):
+    z_mean, z_log_var = args
+    epsilon = K.random_normal(shape=(batch_size, num_topic),
+                              mean=0., stddev=1.)
+    return z_mean + K.exp(z_log_var / 2) * epsilon
+
+unnormalized_z = Lambda(sampling, output_shape=(num_topic,))([z_mean, z_log_var])
+
+# decoder network
+theta = Activation('softmax')(unnormalized_z)
+theta = Dropout(0.5)(theta)
+doc = Dense(units=V)(theta)
+doc = BatchNormalization()(doc)
+doc = Activation('softmax')(doc)
+
+# Custom loss layer
+class CustomVariationalLayer(Layer):
+    def __init__(self, **kwargs):
+        self.is_placeholder = True
+        super(CustomVariationalLayer, self).__init__(**kwargs)
+    def vae_loss(self, x, inference_x):
+        decoder_loss = K.sum(x * K.log(inference_x), axis=-1)
+        encoder_loss = -0.5*(K.sum(inv_sigma1*K.exp(z_log_var) + K.square(z_mean)*inv_sigma1 - 1 - z_log_var, axis=-1) + log_det_sigma)
+        return -K.mean(encoder_loss + decoder_loss)
+    def call(self, inputs):
+        x = inputs[0] 
+        inference_x = inputs[1]
+        loss = self.vae_loss(x, inference_x)
+        self.add_loss(loss, inputs=inputs)
+        # We won't actually use the output.
+        return x
+
+# compile the model    
+y = CustomVariationalLayer()([x, doc])
+prodLDA = Model(x, y)
+prodLDA.compile(optimizer=Adam(lr=0.001, beta_1=0.99), loss=None)
+
+# train the model
+prodLDA.fit(x_train, verbose=1, batch_size=batch_size, validation_split=0.1, callbacks=[EarlyStopping(patience=3)], epochs=20)
+
+# do some things
+exp_beta = np.exp(prodLDA.get_weights()[-6]).T
+phi = (exp_beta/np.sum(exp_beta, axis=0)).T
+
+# print some topics
+for k, phi_k in enumerate(phi):
+    print('topic: {}'.format(k))
+    for w in np.argsort(phi_k)[::-1][:10]:
+        print(index2word[w], phi_k[w])
+    print()
+
+```
+

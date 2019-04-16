@@ -59,6 +59,7 @@ test <- setdiff(idx, c(train1, train2))
 ### save the things we need for future use ----
 save(docs, dtm, train1, train2, test, doc_class, file = "data_derived/20_newsgroups_formatted.RData")
 
+### remove unzipped newsgroups files ----
+# (keeps them from syncing with my cloud backup)
 
-
-
+system("rm -r news20")

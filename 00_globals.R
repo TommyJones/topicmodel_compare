@@ -7,11 +7,19 @@ library(textmineR)
 library(keras)
 library(magrittr)
 library(SigOptR)
+library(R6) # uh oh...
+
+### declare GLOBAL variables ----
+random_seed <- 41523
 
 ### declare functions ----
 
 # classifiers
 train_classifier <- function(y, x, nodes = rep(ncol(x), 5), activation = "relu", dropout = 0.4) {
+  
+  if (length(nodes) < 5) {
+    nodes <- rep(nodes[1], 5)
+  }
   
   x <- as.matrix(x)
   y <- data.frame(y = factor(y))
@@ -30,7 +38,7 @@ train_classifier <- function(y, x, nodes = rep(ncol(x), 5), activation = "relu",
     # layer_dropout(rate = dropout) %>% 
     layer_dense(units = nodes[4], activation = activation) %>% 
     # layer_dropout(rate = dropout) %>% 
-    layer_dense(units = nodes[4], activation = activation) %>% 
+    layer_dense(units = nodes[5], activation = activation) %>% 
     layer_dropout(rate = dropout) %>% 
     layer_dense(units = ncol(y), activation = "softmax")
   
@@ -218,15 +226,19 @@ train_prodlda <- function(dtm, k, alpha, hidden_nodes, batch_size, validation_sp
   
 }
 
-predict_prod_lda <- function(model, new_data, batch_size){
+predict_prod_lda <- function(model, new_data, batch_size, norm_theta = TRUE){
   
   intermediate_layer_model <- keras_model(inputs = model$input,
                                           outputs = get_layer(model, index = 8)$output)
   
-  theta <- exp(predict(intermediate_layer_model, new_data, batch_size = batch_size))
+  theta <- predict(intermediate_layer_model, new_data, batch_size = batch_size)
   
-  theta <- theta / rowSums(theta)
-  
+  if (norm_theta) {
+    theta <- exp(theta)
+    
+    theta <- theta / rowSums(theta)
+  }
+
   rownames(theta) <- rownames(new_data)
   
   colnames(theta) <- paste0("t_", seq_len(ncol(theta)))

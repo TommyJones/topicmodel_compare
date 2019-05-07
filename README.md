@@ -1,4 +1,4 @@
 Project compares performance of various topic modeling schemes on classifying
-the 20 newsgroups dataset
+the 20 newsgroups dataset. Prepared as a final project for CS 795 at George 
+Mason University in the Spring of 2019.
 
-20 newsgroups here: http://www.cs.cmu.edu/afs/cs.cmu.edu/project/theo-20/www/data/news20.html

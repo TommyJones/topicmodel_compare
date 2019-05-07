@@ -45,7 +45,7 @@ The remainder of this paper is organized as follows: Section 2 gives a more-deta
 
 ## Latent Dirichlet Allocation
 
-Latent Dirichlet Allocation (LDA) is a Bayesian model of language. It models an idealized stochastic process for how words get on the page. Instead of writing full, syntatictically-coherent, sentences, the author samples a topic from a multinomial distribution and then given the topic samples a word. The process for a single draw of the $n$-th word for the $d$-th document, $w_{d,n}$, is 
+Latent Dirichlet Allocation (LDA) is a Bayesian model of language. It models an idealized stochastic process for how words get on the page. Instead of writing full, syntatictically-coherent, sentences, the author samples a topic from a multinomial distribution and then---given the topic---samples a word. The process for a single draw of the $n$-th word for the $d$-th document, $w_{d,n}$, is 
 
 1. Sample a topic $z_{d,n} \sim \text{Multinomial}_K(1,\boldsymbol\theta_d)$
 2. Given topic $z_{d,n}$, sample a word $w_{d,n} \sim \text{Multinomial}_V(1, \boldsymbol\phi_{z_{d,n}})$
